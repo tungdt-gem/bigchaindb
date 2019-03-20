@@ -1,0 +1,23 @@
+FROM python:3.6
+LABEL maintainer "tungdt@edsolabs.com"
+RUN apt-get -qq update \
+    && apt-get -y upgrade \
+    && apt-get install -y jq \
+    && apt-get install -y python3-pip libssl-dev \
+    && apt-get autoremove \
+    && apt-get clean
+
+RUN pip3 install bigchaindb==2.0.0b9
+
+VOLUME ["/data", "/certs"]
+
+ENV PYTHONUNBUFFERED 0
+ENV BIGCHAINDB_CONFIG_PATH /data/.bigchaindb
+ENV BIGCHAINDB_SERVER_BIND 0.0.0.0:9984
+ENV BIGCHAINDB_WSSERVER_HOST 0.0.0.0
+ENV BIGCHAINDB_WSSERVER_SCHEME ws
+ENV BIGCHAINDB_WSSERVER_ADVERTISED_HOST 0.0.0.0
+ENV BIGCHAINDB_WSSERVER_ADVERTISED_SCHEME ws
+ENV BIGCHAINDB_WSSERVER_ADVERTISED_PORT 9985
+ENTRYPOINT ["bigchaindb"]
+CMD ["start"]
