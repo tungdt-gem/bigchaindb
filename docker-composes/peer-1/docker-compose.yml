@@ -1,0 +1,61 @@
+# Copyright BigchainDB GmbH and BigchainDB contributors
+# SPDX-License-Identifier: (Apache-2.0 AND CC-BY-4.0)
+# Code is Apache-2.0 and docs are CC-BY-4.0
+
+version: '2.1'
+
+services:
+  # Build: docker-compose build -d bigchaindb
+  # Run: docker-compose run -d bdb
+  mongodb-2:
+    image: mongo:3.6
+    ports:
+    - "27027:27017"
+    command: mongod
+    restart: always
+    networks:
+    - bigchaindb
+
+  bigchaindb-2:
+    depends_on:
+    - mongodb-2
+    - tendermint-2
+    image: socoboy/bigchaindb:2.0.0b9
+    environment:
+      BIGCHAINDB_DATABASE_BACKEND: localmongodb
+      BIGCHAINDB_DATABASE_HOST: mongodb-2
+      BIGCHAINDB_DATABASE_PORT: 27017
+      BIGCHAINDB_SERVER_BIND: 0.0.0.0:9984
+      BIGCHAINDB_WSSERVER_HOST: 0.0.0.0
+      BIGCHAINDB_WSSERVER_ADVERTISED_HOST: bigchaindb-2
+      BIGCHAINDB_TENDERMINT_HOST: tendermint-2
+      BIGCHAINDB_TENDERMINT_PORT: 26657
+    ports:
+    - "9994:9984"
+    - "9995:9985"
+    - "26668"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb-2:9984 && curl http://tendermint-2:26657/abci_query"]
+      interval: 3s
+      timeout: 5s
+      retries: 3
+    restart: always
+    networks:
+    - bigchaindb
+
+  tendermint-2:
+    image: tendermint/tendermint:0.22.8
+    ports:
+    - "26666:26656"
+    - "26667:26657"
+    entrypoint: ''
+    volumes:
+    - ./config:/tendermint/custom-config
+    command: sh -c "mkdir -p /tendermint/config && cp /tendermint/custom-config/* /tendermint/config && tendermint init && tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb-2:26658"
+    restart: always
+    networks:
+    - bigchaindb
+
+networks:
+  bigchaindb:
+    external: true
