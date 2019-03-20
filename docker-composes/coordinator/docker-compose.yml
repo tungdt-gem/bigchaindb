@@ -1,0 +1,72 @@
+# Copyright BigchainDB GmbH and BigchainDB contributors
+# SPDX-License-Identifier: (Apache-2.0 AND CC-BY-4.0)
+# Code is Apache-2.0 and docs are CC-BY-4.0
+
+version: '2.1'
+
+services:
+  # Build: docker-compose build -d bigchaindb
+  # Run: docker-compose run -d bdb
+  mongodb-1:
+    image: mongo:3.6
+    ports:
+      - "27017:27017"
+    command: mongod
+    restart: always
+    networks:
+    - bigchaindb
+
+  bigchaindb-1:
+    depends_on:
+      - mongodb-1
+      - tendermint-1
+    image: socoboy/bigchaindb:2.0.0b9
+    environment:
+      BIGCHAINDB_DATABASE_BACKEND: localmongodb
+      BIGCHAINDB_DATABASE_HOST: mongodb-1
+      BIGCHAINDB_DATABASE_PORT: 27017
+      BIGCHAINDB_SERVER_BIND: 0.0.0.0:9984
+      BIGCHAINDB_WSSERVER_HOST: 0.0.0.0
+      BIGCHAINDB_WSSERVER_ADVERTISED_HOST: bigchaindb-1
+      BIGCHAINDB_TENDERMINT_HOST: tendermint-1
+      BIGCHAINDB_TENDERMINT_PORT: 26657
+    ports:
+      - "9984:9984"
+      - "9985:9985"
+      - "26658"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb-1:9984 && curl http://tendermint-1:26657/abci_query"]
+      interval: 3s
+      timeout: 5s
+      retries: 3
+    restart: always
+    networks:
+    - bigchaindb
+
+  tendermint-1:
+    image: tendermint/tendermint:0.22.8
+    ports:
+      - "26656:26656"
+      - "26657:26657"
+    entrypoint: ''
+    volumes:
+    - ./config:/tendermint/custom-config
+    command: sh -c "mkdir -p /tendermint/config && cp /tendermint/custom-config/* /tendermint/config && tendermint init && tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb-1:26658"
+    restart: always
+    networks:
+    - bigchaindb
+
+  tendermint-3:
+    image: tendermint/tendermint:0.22.8
+    ports:
+    - "26656:26656"
+    - "26657:26657"
+    entrypoint: ''
+    command: sh -c "tendermint init && tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb-1:26658"
+    restart: always
+    networks:
+    - bigchaindb
+
+networks:
+  bigchaindb:
+    external: true
