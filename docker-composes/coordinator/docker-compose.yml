@@ -56,17 +56,6 @@ services:
     networks:
     - bigchaindb
 
-  tendermint-3:
-    image: tendermint/tendermint:0.22.8
-    ports:
-    - "26656:26656"
-    - "26657:26657"
-    entrypoint: ''
-    command: sh -c "tendermint init && tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb-1:26658"
-    restart: always
-    networks:
-    - bigchaindb
-
 networks:
   bigchaindb:
     external: true
